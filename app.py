@@ -4,6 +4,11 @@ import pandas as pd
 import json
 import os
 from streamlit_tags import st_tags_sidebar
+import requests
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Set the page configuration
 st.set_page_config(
@@ -45,12 +50,23 @@ def is_valid_url(url):
     )
     return re.match(regex, url) is not None
 
+# Function to check scraping availability
+def is_scrapable(url):
+    try:
+        response = requests.get(url)
+        # Check if the response status code is 200 (OK)
+        return response.status_code == 200
+    except requests.RequestException:
+        return False
+
 # URL Input
 url = st.sidebar.text_input("Enter the URL to scrape", "https://github.com/krishnaik06?tab=repositories")
 
-# Validate URL
+# Validate URL and check scraping availability
 if not is_valid_url(url):
     st.sidebar.error("Please enter a valid URL.")
+elif not is_scrapable(url):
+    st.sidebar.error("The URL is not accessible or scrapable.")
 
 # Wanted List Input
 st.sidebar.subheader("Example Data Points (wanted_list)")
@@ -66,18 +82,28 @@ wanted_list = st_tags_sidebar(
 # Scraping Section
 st.sidebar.subheader("🚀 Run Scraper")
 if st.sidebar.button("Start Scraping"):
+    logging.info("Start Scraping button clicked.")
     if not is_valid_url(url):
         st.error("Invalid URL. Please enter a valid URL to proceed.")
+        logging.error("Invalid URL entered.")
     elif not wanted_list:
         st.error("Please enter at least one data point in the wanted list.")
+        logging.error("Wanted list is empty.")
     else:
         with st.spinner("Building scraper and scraping data..."):
             try:
+                logging.info("Building scraper with URL: %s and wanted list: %s", url, wanted_list)
                 scraper = AutoScraper()
                 scraper.build(url, wanted_list)
                 
                 # Get structured results
                 structured_result = scraper.get_result_similar(url, grouped=True)
+                print(structured_result)
+                if(structured_result == None or structured_result == {}):
+                    st.error("No data found. Please check the URL and wanted list.")
+                    logging.error("No data found. Please check the URL and wanted list.")
+                else:
+                    logging.info("Scraping completed successfully.")
                 
                 # Create rule aliases
                 rules_dict = {}
@@ -93,6 +119,7 @@ if st.sidebar.button("Start Scraping"):
                 
             except Exception as e:
                 st.error(f"An error occurred during scraping: {e}")
+                logging.error("An error occurred during scraping: %s", e)
 
 # Separate Scraper Management Section
 st.sidebar.divider()

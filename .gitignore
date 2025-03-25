@@ -1,1 +1,8 @@
 /venv
+
+# JSON files
+*.json
+
+# Jupyter Notebook files
+*.ipynb
+.ipynb_checkpoints/
